@@ -4,6 +4,8 @@ from textblob import TextBlob
 import re
 import os
 from transformers import pipeline
+from collections import Counter
+from sklearn.feature_extraction.text import CountVectorizer
 
 # Supprimer la base de données existante si elle existe
 if os.path.exists("tourism_paris.db"):
@@ -50,6 +52,23 @@ data[['Sentiment Label HuggingFace', 'Sentiment Score HuggingFace']] = data['Rev
     lambda review: pd.Series(analyze_sentiment_huggingface(review))
 )
 
+# Fonction pour extraire les bigrams les plus fréquents
+def extract_top_bigrams(reviews, n=2):
+    vectorizer = CountVectorizer(ngram_range=(2, 2))
+    X = vectorizer.fit_transform(reviews)
+    bigrams = vectorizer.get_feature_names_out()
+    counts = X.sum(axis=0).A1
+    bigram_counts = Counter(dict(zip(bigrams, counts)))
+    return bigram_counts.most_common(n)
+
+# Ajouter les deux bigrams les plus fréquents par arrondissement
+bigrams_by_district = (
+    data.groupby('Arrondissement')['Cleaned Reviews']
+    .apply(lambda reviews: extract_top_bigrams(reviews.dropna().tolist()))
+    .to_dict()
+)
+data['Top Bigrams'] = data['Arrondissement'].map(bigrams_by_district)
+
 # Créer une connexion SQLite
 conn = sqlite3.connect("tourism_paris.db")
 cursor = conn.cursor()
@@ -69,15 +88,16 @@ CREATE TABLE IF NOT EXISTS establishments (
     cleaned_reviews TEXT,
     sentiment_score_textblob REAL,
     sentiment_label_huggingface TEXT,
-    sentiment_score_huggingface REAL
+    sentiment_score_huggingface REAL,
+    top_bigrams TEXT
 )
 ''')
 
 # Insérer les données dans la table
 for _, row in data.iterrows():
     cursor.execute('''
-    INSERT INTO establishments (name, address, latitude, longitude, review_count, average_rating, reviews, district, cleaned_reviews, sentiment_score_textblob, sentiment_label_huggingface, sentiment_score_huggingface)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO establishments (name, address, latitude, longitude, review_count, average_rating, reviews, district, cleaned_reviews, sentiment_score_textblob, sentiment_label_huggingface, sentiment_score_huggingface, top_bigrams)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         row['Nom'],
         row['Adresse'],
@@ -90,18 +110,19 @@ for _, row in data.iterrows():
         row['Cleaned Reviews'],
         row['Sentiment Score TextBlob'],
         row['Sentiment Label HuggingFace'],
-        row['Sentiment Score HuggingFace']
+        row['Sentiment Score HuggingFace'],
+        str(row['Top Bigrams'])
     ))
 
 # Sauvegarder les changements et fermer la connexion
 conn.commit()
 
 # Vérifier les 5 premières lignes après ajout des sentiments
-cursor.execute("SELECT name, address, latitude, longitude, district, average_rating, sentiment_label_huggingface, sentiment_score_huggingface FROM establishments LIMIT 5")
+cursor.execute("SELECT name, address, latitude, longitude, district, average_rating, sentiment_label_huggingface, sentiment_score_huggingface, top_bigrams FROM establishments LIMIT 5")
 rows = cursor.fetchall()
 for row in rows:
     print(row)
 
 conn.close()
 
-print("Analyse NLP terminée avec TextBlob et Hugging Face. Résultats stockés dans la base de données.")
+print("Analyse NLP terminée avec TextBlob, Hugging Face et extraction des bigrams. Résultats stockés dans la base de données.")

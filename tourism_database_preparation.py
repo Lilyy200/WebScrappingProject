@@ -1,39 +1,31 @@
 import sqlite3
 import pandas as pd
 import folium
-from folium.plugins import MarkerCluster
 import json
+import numpy as np
 
 # Connexion à la base de données SQLite
 conn = sqlite3.connect("tourism_paris.db")
 
 # Charger les données de la base SQLite
-data = pd.read_sql_query("SELECT district, sentiment_score_textblob,sentiment_label_huggingface,sentiment_score_huggingface, average_rating FROM establishments", conn)
+data = pd.read_sql_query("SELECT district, sentiment_score_textblob, sentiment_label_huggingface, sentiment_score_huggingface, average_rating, top_bigrams FROM establishments", conn)
 
-# Agréger les scores de sentiment et les notes moyennes par arrondissement
+# Agréger les scores de sentiment, les notes moyennes et les bigrams par arrondissement
 aggregated_data = data.groupby("district").agg(
     average_sentiment=('sentiment_score_textblob', 'mean'),
     average_sentiment_huggingface=('sentiment_score_huggingface', 'mean'),
     average_sentiment_label=('sentiment_label_huggingface', lambda x: x.value_counts().index[0]),
     average_rating=('average_rating', 'mean'),
+    top_bigrams=('top_bigrams', lambda x: x.iloc[0]),
     restaurant_count=('district', 'count')  # Compte du nombre de restaurants
 ).reset_index()
-aggregated_data.columns = ["district", "average_sentiment","average_sentiment_huggingface","average_sentiment_label", "average_rating", "restaurant_count"]
-
 
 # Charger le fichier GeoJSON des arrondissements de Paris
 with open("arrondissements.geojson", "r", encoding="utf-8") as f:
     geo_data = json.load(f)
 
-# Vérifier les correspondances entre les districts dans la base et le GeoJSON
-geo_districts = [str(feature["properties"]["c_ar"]) + 'e' for feature in geo_data["features"]]  # Conversion en chaîne et ajout d'un 'e'
-print("Districts GeoJSON (avec 'e') :", geo_districts)
-
-# Afficher les districts disponibles dans les données agrégées
-print("Districts disponibles dans aggregated_data :", aggregated_data["district"].tolist())
 # Normaliser le format des districts dans aggregated_data
-aggregated_data['district'] = aggregated_data['district'].str.replace("er", "", regex=False)  # Supprimer le 'e'
-aggregated_data['district'] = aggregated_data['district'].str.replace("r", "", regex=False)  # Supprimer le 'er'
+aggregated_data['district'] = aggregated_data['district'].str.replace("er", "", regex=False)
 aggregated_data['district'] = aggregated_data['district'].str.replace("e", "", regex=False)
 aggregated_data['district'] = aggregated_data['district'].astype(int)  # Convertir en entier pour correspondre au GeoJSON
 
@@ -66,14 +58,17 @@ for feature in geo_data["features"]:
         sentiment_label = row["average_sentiment_label"].values[0]
         rating = row["average_rating"].values[0]
         restaurant_count = row["restaurant_count"].values[0]
+        bigrams = eval(row["top_bigrams"].values[0])  # Convertir les bigrams de chaîne en liste de tuples
+        bigrams_html = "<br>".join([f"{bigram[0]} ({bigram[1]} occurrences)" for bigram in bigrams])
     else:
         sentiment = "Données manquantes"
         sentiment_huggingface = "Données manquantes"
         sentiment_label = "Données manquantes"
         rating = "Données manquantes"
         restaurant_count = 0
+        bigrams_html = "Données manquantes"
 
-    # Ajouter le GeoJson avec les styles
+    # Ajouter le GeoJson avec les styles et les bigrams
     folium.GeoJson(
         feature,
         style_function=lambda x, sentiment=sentiment: {
@@ -88,7 +83,8 @@ for feature in geo_data["features"]:
             f"<b>Satisfaction moyenne Hugging Face:</b> {sentiment_huggingface}<br>"
             f"<b>Label de satisfaction Hugging Face:</b> {sentiment_label}<br>"
             f"<b>Note moyenne des restaurants:</b> {rating}<br>"
-            f"<b>Nombre de restaurants:</b> {restaurant_count}"
+            f"<b>Nombre de restaurants:</b> {restaurant_count}<br>"
+            f"<b>Bigrams fréquents:</b><br>{bigrams_html}"
         ),
     ).add_to(map_paris)
 
