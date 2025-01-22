@@ -6,6 +6,12 @@ import os
 from transformers import pipeline
 from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer
+from nltk.corpus import stopwords
+import nltk
+
+# Télécharger les stopwords si nécessaire
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
 
 # Supprimer la base de données existante si elle existe
 if os.path.exists("tourism_paris.db"):
@@ -26,6 +32,14 @@ def clean_text(text):
     return text.strip().lower()
 
 data['Cleaned Reviews'] = data['Reviews'].apply(clean_text)
+
+# Fonction pour supprimer les stopwords
+def remove_stopwords(text):
+    words = text.split()
+    filtered_words = [word for word in words if word not in stop_words]
+    return " ".join(filtered_words)
+
+data['Processed Reviews'] = data['Cleaned Reviews'].apply(remove_stopwords)
 
 # Fonction pour analyser le sentiment avec TextBlob
 def analyze_sentiment_textblob(review):
@@ -63,7 +77,7 @@ def extract_top_bigrams(reviews, n=2):
 
 # Ajouter les deux bigrams les plus fréquents par arrondissement
 bigrams_by_district = (
-    data.groupby('Arrondissement')['Cleaned Reviews']
+    data.groupby('Arrondissement')['Processed Reviews']
     .apply(lambda reviews: extract_top_bigrams(reviews.dropna().tolist()))
     .to_dict()
 )
@@ -86,6 +100,7 @@ CREATE TABLE IF NOT EXISTS establishments (
     reviews TEXT,
     district TEXT,
     cleaned_reviews TEXT,
+    processed_reviews TEXT,
     sentiment_score_textblob REAL,
     sentiment_label_huggingface TEXT,
     sentiment_score_huggingface REAL,
@@ -96,8 +111,8 @@ CREATE TABLE IF NOT EXISTS establishments (
 # Insérer les données dans la table
 for _, row in data.iterrows():
     cursor.execute('''
-    INSERT INTO establishments (name, address, latitude, longitude, review_count, average_rating, reviews, district, cleaned_reviews, sentiment_score_textblob, sentiment_label_huggingface, sentiment_score_huggingface, top_bigrams)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO establishments (name, address, latitude, longitude, review_count, average_rating, reviews, district, cleaned_reviews, processed_reviews, sentiment_score_textblob, sentiment_label_huggingface, sentiment_score_huggingface, top_bigrams)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         row['Nom'],
         row['Adresse'],
@@ -108,6 +123,7 @@ for _, row in data.iterrows():
         row['Reviews'],
         row['Arrondissement'],
         row['Cleaned Reviews'],
+        row['Processed Reviews'],
         row['Sentiment Score TextBlob'],
         row['Sentiment Label HuggingFace'],
         row['Sentiment Score HuggingFace'],
