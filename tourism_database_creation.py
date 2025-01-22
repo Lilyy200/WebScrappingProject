@@ -33,7 +33,7 @@ def analyze_sentiment(review):
 data['Sentiment Score'] = data['Cleaned Reviews'].apply(analyze_sentiment)
 
 # Créer une connexion SQLite
-conn = sqlite3.connect("C:/Document/Christelle/S9/Webscraping and Applied ML/WebScrappingProject/tourism_paris.db")
+conn = sqlite3.connect("tourism_paris.db")
 cursor = conn.cursor()
 
 # Création de la table avec toutes les colonnes nécessaires
