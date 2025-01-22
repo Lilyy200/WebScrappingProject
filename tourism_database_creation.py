@@ -3,6 +3,7 @@ import pandas as pd
 from textblob import TextBlob
 import re
 import os
+from transformers import pipeline
 
 # Supprimer la base de données existante si elle existe
 if os.path.exists("tourism_paris.db"):
@@ -25,12 +26,29 @@ def clean_text(text):
 data['Cleaned Reviews'] = data['Reviews'].apply(clean_text)
 
 # Fonction pour analyser le sentiment avec TextBlob
-def analyze_sentiment(review):
+def analyze_sentiment_textblob(review):
     blob = TextBlob(review)
     sentiment_score = blob.sentiment.polarity  # Score entre -1 (négatif) et 1 (positif)
     return sentiment_score
 
-data['Sentiment Score'] = data['Cleaned Reviews'].apply(analyze_sentiment)
+data['Sentiment Score TextBlob'] = data['Cleaned Reviews'].apply(analyze_sentiment_textblob)
+
+# Initialiser le pipeline Hugging Face pour l'analyse des sentiments
+sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+# Fonction pour analyser le sentiment avec Hugging Face
+def analyze_sentiment_huggingface(review):
+    if not review.strip():
+        return None  # Retourne None si la revue est vide
+    result = sentiment_pipeline(review[:512])[0]  # Truncate to 512 tokens if necessary
+    sentiment = result['label']
+    score = result['score']
+    return sentiment, score
+
+# Ajouter les colonnes pour les résultats de Hugging Face
+data[['Sentiment Label HuggingFace', 'Sentiment Score HuggingFace']] = data['Reviews'].apply(
+    lambda review: pd.Series(analyze_sentiment_huggingface(review))
+)
 
 # Créer une connexion SQLite
 conn = sqlite3.connect("tourism_paris.db")
@@ -49,15 +67,17 @@ CREATE TABLE IF NOT EXISTS establishments (
     reviews TEXT,
     district TEXT,
     cleaned_reviews TEXT,
-    sentiment_score REAL
+    sentiment_score_textblob REAL,
+    sentiment_label_huggingface TEXT,
+    sentiment_score_huggingface REAL
 )
 ''')
 
 # Insérer les données dans la table
 for _, row in data.iterrows():
     cursor.execute('''
-    INSERT INTO establishments (name, address, latitude, longitude, review_count, average_rating, reviews, district, cleaned_reviews, sentiment_score)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO establishments (name, address, latitude, longitude, review_count, average_rating, reviews, district, cleaned_reviews, sentiment_score_textblob, sentiment_label_huggingface, sentiment_score_huggingface)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         row['Nom'],
         row['Adresse'],
@@ -68,20 +88,20 @@ for _, row in data.iterrows():
         row['Reviews'],
         row['Arrondissement'],
         row['Cleaned Reviews'],
-        row['Sentiment Score']
+        row['Sentiment Score TextBlob'],
+        row['Sentiment Label HuggingFace'],
+        row['Sentiment Score HuggingFace']
     ))
 
 # Sauvegarder les changements et fermer la connexion
 conn.commit()
 
 # Vérifier les 5 premières lignes après ajout des sentiments
-cursor.execute("SELECT name, address, latitude, longitude, district, average_rating, sentiment_score FROM establishments LIMIT 5")
+cursor.execute("SELECT name, address, latitude, longitude, district, average_rating, sentiment_label_huggingface, sentiment_score_huggingface FROM establishments LIMIT 5")
 rows = cursor.fetchall()
 for row in rows:
     print(row)
 
 conn.close()
 
-print("Analyse NLP terminée et résultats stockés dans la base de données.")
-
-
+print("Analyse NLP terminée avec TextBlob et Hugging Face. Résultats stockés dans la base de données.")
