@@ -5,12 +5,12 @@ import re
 import os
 
 # Supprimer la base de données existante si elle existe
-if os.path.exists("C:/Document/Christelle/S9/Webscraping and Applied ML/WebScrappingProject/tourism_paris.db"):
-    os.remove("C:/Document/Christelle/S9/Webscraping and Applied ML/WebScrappingProject/tourism_paris.db")
+if os.path.exists("tourism_paris.db"):
+    os.remove("tourism_paris.db")
     print("Base de données existante supprimée.")
 
 # Charger les données à partir du CSV
-file_path = "C:/Document/Christelle/S9/Webscraping and Applied ML/WebScrappingProject/paris_restaurants2.csv"
+file_path = "paris_restaurants2.csv"
 data = pd.read_csv(file_path)
 
 # Nettoyer les données pour les valeurs manquantes
