@@ -89,7 +89,7 @@ for feature in geo_data["features"]:
     ).add_to(map_paris)
 
 # Sauvegarder la carte dans un fichier HTML
-map_paris.save("paris_restaurant_satisfaction_map.html")
+map_paris.save("templates/paris_restaurant_satisfaction_map.html")
 
 print("Carte interactive sauvegardée sous paris_restaurant_satisfaction_map.html")
 

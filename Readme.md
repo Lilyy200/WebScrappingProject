@@ -9,3 +9,7 @@ Thématique & Evaluation :
 Créer notre GitHub !!! (aller voir il y a pleins de GitHub très bien fait, ex : SeLoger.com ont un GitHub déjà fait)
 Deadline : en présentiel par groupe avec soutenance orale lors de la semaine d'examen (entre le 20 et le 24)
 
+Pour lancer l'application :
+- cd app
+- python app.py
+
