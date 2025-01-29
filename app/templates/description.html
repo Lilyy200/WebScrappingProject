@@ -1,0 +1,34 @@
+<!-- templates/description.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Description de l'arrondissement</title>
+</head>
+<body>
+    <h1>Description de l'arrondissement</h1>
+    <p id="description">Chargement...</p>
+    <a href="/">Retour à la carte</a>
+
+    <script>
+        // Récupérer l'arrondissement depuis l'URL (ex: /description?arrondissement=5)
+        const urlParams = new URLSearchParams(window.location.search);
+        const arrondissement = urlParams.get('arrondissement');
+
+        if (arrondissement) {
+            // Faire une requête pour obtenir la description de l'arrondissement
+            fetch(`/api/description/${arrondissement}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('description').innerText = data.description;
+                })
+                .catch(error => {
+                    document.getElementById('description').innerText = "Erreur lors de la récupération des données.";
+                    console.error('Erreur:', error);
+                });
+        } else {
+            document.getElementById('description').innerText = "Aucun arrondissement spécifié.";
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recommandations Paris</title>
+    <script>
+        function fetchRecommendations(district) {
+            console.log("Requête envoyée pour district:", district); // Vérifier l'envoi
+            fetch(`/recommandations?district=${encodeURIComponent(district)}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Données reçues:", data); // Vérifier la réponse
+    
+                    let container = document.getElementById("recommandations");
+                    container.innerHTML = "";
+    
+                    if (!Array.isArray(data) || data.length === 0) {
+                        container.innerHTML = "<p>Aucune recommandation trouvée.</p>";
+                        return;
+                    }
+    
+                    let list = "<ul>";
+                    data.forEach(item => {
+                        list += `<li><strong>${item.name}</strong> - ${item.category} - ${item.address} - ${item.price}<br>${item.description}</li>`;
+                    });
+                    list += "</ul>";
+                    container.innerHTML = list;
+    
+                    console.log("Mise à jour de l'interface avec les données"); // Vérifier si cette étape s'exécute
+                })
+                .catch(error => {
+                    console.error("Erreur:", error);
+                    document.getElementById("recommandations").innerHTML = "<p>Une erreur s'est produite.</p>";
+                });
+        }
+    </script>
+    
+    
+</head>
+<body>
+    <h1>Choisissez un arrondissement</h1>
+    <div id="districts">
+        <button onclick="fetchRecommendations('1st')">1er</button>
+        <button onclick="fetchRecommendations('2nd')">2e</button>
+        <button onclick="fetchRecommendations('3rd')">3e</button>
+        <button onclick="fetchRecommendations('4th')">4e</button>
+        <button onclick="fetchRecommendations('5th')">5e</button>
+        <button onclick="fetchRecommendations('6th')">6e</button>
+        <button onclick="fetchRecommendations('7th')">7e</button>
+        <button onclick="fetchRecommendations('8th')">8e</button>
+        <button onclick="fetchRecommendations('9th')">9e</button>
+        <button onclick="fetchRecommendations('10th')">10e</button>
+        <button onclick="fetchRecommendations('11th')">11e</button>
+        <button onclick="fetchRecommendations('12th')">12e</button>
+        <button onclick="fetchRecommendations('13th')">13e</button>
+        <button onclick="fetchRecommendations('14th')">14e</button>
+        <button onclick="fetchRecommendations('15th')">15e</button>
+        <button onclick="fetchRecommendations('16th')">16e</button>
+        <button onclick="fetchRecommendations('17th')">17e</button>
+        <button onclick="fetchRecommendations('18th')">18e</button>
+        <button onclick="fetchRecommendations('19th')">19e</button>
+        <button onclick="fetchRecommendations('20th')">20e</button>
+    </div>
+    <h2>Recommandations</h2>
+    <div id="recommandations"></div>
+</body>
+</html>
